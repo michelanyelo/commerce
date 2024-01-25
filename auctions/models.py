@@ -1,7 +1,7 @@
 from typing import Any
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-
+from django.utils.text import slugify
 
 class User(AbstractUser):
     pass
@@ -9,6 +9,13 @@ class User(AbstractUser):
 
 class Category(models.Model):
     name = models.CharField(max_length=64)
+    slug = models.SlugField(unique=True, max_length=100, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        # Generar automáticamente un slug si no se proporciona
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

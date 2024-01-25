@@ -8,11 +8,40 @@ from .models import User, Category, Listing
 
 
 def index(request):
-    return render(request, "auctions/index.html")
+    # ---- start active listing page ----
+    # get all categories
+    all_categories = Category.objects.all()
+
+    # get active listings
+    active_listing = Listing.objects.filter(is_active=True)
+
+    # render the index.html template with active listings and all categories
+    return render(request, "auctions/index.html", {
+        "actives": active_listing,
+        "categories": all_categories
+    })
+    # ---- end active listing page ----
+
+
+# ---- start categories listing ----
+
+def category_listings(request, category_slug):
+    # get the category object based on the provided slug
+    category = Category.objects.get(slug=category_slug)
+
+    # get active listings for the specific category
+    active_listings = Listing.objects.filter(category=category, is_active=True)
+
+    # render the category_listings.html template with active listings and the selected category
+    return render(request, "auctions/category_listings.html", {
+        "category": category,
+        "actives": active_listings
+    })
+
+# ---- end categories listing ----
 
 
 # ---- start create listing ----
-
 
 def create_listing(request):
     if request.method == "GET":
@@ -27,7 +56,7 @@ def create_listing(request):
         category = request.POST["category"]
         categoryData = Category.objects.get(name=category)
         active = request.POST["active"]
-        # Convert 'active' to boolean
+        # convert 'active' to boolean
         if active == "on":
             is_active = True
         else:
@@ -88,7 +117,8 @@ def register(request):
         confirmation = request.POST["confirmation"]
         if password != confirmation:
             return render(
-                request, "auctions/register.html", {"message": "Passwords must match."}
+                request, "auctions/register.html", {
+                    "message": "Passwords must match."}
             )
 
         # Attempt to create new user
