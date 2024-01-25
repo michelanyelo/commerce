@@ -80,6 +80,16 @@ def create_listing(request):
 
 # ---- end create listing ----
 
+# ---- start individual listing ----
+
+def listing(request, listing_id):
+    listing = Listing.objects.get(id=listing_id)
+    return render(request, "auctions/listing.html", {
+        "listing": listing
+    })
+
+# ---- end individual listing ----
+
 
 def login_view(request):
     if request.method == "POST":

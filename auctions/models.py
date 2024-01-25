@@ -12,7 +12,7 @@ class Category(models.Model):
     slug = models.SlugField(unique=True, max_length=100, blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        # Generar automáticamente un slug si no se proporciona
+        # generate a slug
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
