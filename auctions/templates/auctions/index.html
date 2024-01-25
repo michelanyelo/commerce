@@ -3,7 +3,24 @@
 {% block body %}
   <h2>Active Listings</h2>
   <br />
-  <div class="row row-cols-1 row-cols-md-3 g-4">
+  <form method="POST">
+    {% csrf_token %}
+    <div class="row">
+      <div class="col">
+        <select name="category" class="form-select">
+          <option selected disabled>Search by category:</option>
+          {% for category in categories %}
+            <option value="{{ category.slug }}">{{ category.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col">
+        <button type="submit" class="btn btn-warning">Search</button>
+      </div>
+    </div>
+  </form>
+  <br>
+  <div class="row row-cols-1 row-cols-md-4 g-4">
     {% for active in actives %}
       <div class="col card-group">
         <div class="card mb-3" style="max-width: 540px;">

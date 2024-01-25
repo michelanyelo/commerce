@@ -1,44 +1,51 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from .models import User, Category, Listing
 
 
+def get_filtered_listings(category_slug=None):
+    active_listings = Listing.objects.filter(is_active=True)
+
+    if category_slug:
+        category = Category.objects.get(slug=category_slug)
+        active_listings = active_listings.filter(category=category)
+
+    return active_listings
+
+
 def index(request):
-    # ---- start active listing page ----
-    # get all categories
     all_categories = Category.objects.all()
+    category_slug = None
 
-    # get active listings
-    active_listing = Listing.objects.filter(is_active=True)
+    if request.method == "POST":
+        category_slug = request.POST['category']
+        if category_slug:
+            return redirect('category_listings', slug=category_slug)
 
-    # render the index.html template with active listings and all categories
+    active_listings = get_filtered_listings(category_slug)
+
     return render(request, "auctions/index.html", {
-        "actives": active_listing,
+        "actives": active_listings,
         "categories": all_categories
     })
-    # ---- end active listing page ----
 
 
-# ---- start categories listing ----
+def category_listings(request, slug=None):
+    active_listings = get_filtered_listings(slug)
 
-def category_listings(request, category_slug):
-    # get the category object based on the provided slug
-    category = Category.objects.get(slug=category_slug)
+    if slug:
+        category = Category.objects.get(slug=slug)
+    else:
+        category = None
 
-    # get active listings for the specific category
-    active_listings = Listing.objects.filter(category=category, is_active=True)
-
-    # render the category_listings.html template with active listings and the selected category
     return render(request, "auctions/category_listings.html", {
-        "category": category,
-        "actives": active_listings
+        "actives": active_listings,
+        "category": category
     })
-
-# ---- end categories listing ----
 
 
 # ---- start create listing ----
@@ -82,7 +89,7 @@ def create_listing(request):
 
 # ---- start individual listing ----
 
-def listing(request, listing_id):
+def listing_by_id(request, listing_id):
     listing = Listing.objects.get(id=listing_id)
     return render(request, "auctions/listing.html", {
         "listing": listing
