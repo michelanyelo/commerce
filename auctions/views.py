@@ -18,15 +18,16 @@ def get_filtered_listings(category_slug=None):
 
 
 def index(request):
+    # ---- start list of all listing categories ----
     all_categories = Category.objects.all()
     category_slug = None
-
     if request.method == "POST":
         category_slug = request.POST['category']
         if category_slug:
             return HttpResponseRedirect(reverse('category_listings', kwargs={
                 'slug': category_slug
             }))
+    # ---- end list of all listing categories ----
 
     active_listings = get_filtered_listings(category_slug)
     return render(request, "auctions/index.html", {
@@ -35,22 +36,7 @@ def index(request):
     })
 
 
-def category_listings(request, slug=None):
-    active_listings = get_filtered_listings(slug)
-
-    if slug:
-        category = Category.objects.get(slug=slug)
-    else:
-        category = None
-
-    return render(request, "auctions/category_listings.html", {
-        "actives": active_listings,
-        "category": category
-    })
-
 # ---- start create listing ----
-
-
 def create_listing(request):
     if request.method == "GET":
         allCategories = Category.objects.all()
@@ -84,12 +70,10 @@ def create_listing(request):
         new_listing.save()
         # redirect to index html
         return HttpResponseRedirect(reverse(index))
-
-
 # ---- end create listing ----
 
-# ---- start individual listing ----
 
+# ---- start display individual listing ----
 def listing_by_id(request, listing_id):
     listing = Listing.objects.get(id=listing_id)
     in_watchlist = request.user in listing.watchlist.all()
@@ -97,10 +81,10 @@ def listing_by_id(request, listing_id):
         "listing": listing,
         "watchlist": in_watchlist
     })
+# ---- end display individual listing ----
 
-# ---- end individual listing ----
 
-
+# ---- start add/remove watchlist ----
 def remove_watchlist(request, listing_id):
     listing = Listing.objects.get(pk=listing_id)
     user = request.user
@@ -113,6 +97,23 @@ def add_watchlist(request, listing_id):
     user = request.user
     listing.watchlist.add(user)
     return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
+# ---- end add/remove watchlist ----
+
+
+# ---- start list of all listing categories ----
+def category_listings(request, slug=None):
+    active_listings = get_filtered_listings(slug)
+
+    if slug:
+        category = Category.objects.get(slug=slug)
+    else:
+        category = None
+
+    return render(request, "auctions/category_listings.html", {
+        "actives": active_listings,
+        "category": category
+    })
+# ---- end list of all listing categories ----
 
 
 def login_view(request):
