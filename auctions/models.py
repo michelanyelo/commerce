@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.text import slugify
 
+
 class User(AbstractUser):
     pass
 
@@ -35,7 +36,14 @@ class Listing(models.Model):
         on_delete=models.CASCADE,
         blank=True,
         null=True,
-        related_name="category",
+        related_name="category"
+    )
+
+    watchlist = models.ManyToManyField(
+        User,
+        blank=True,
+        null=True,
+        related_name="user_watchlist"
     )
 
     def __str__(self):

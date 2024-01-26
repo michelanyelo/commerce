@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
-from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import redirect, render
+from django.http import HttpResponseRedirect
+from django.shortcuts import render
 from django.urls import reverse
 
 from .models import User, Category, Listing
@@ -24,10 +24,11 @@ def index(request):
     if request.method == "POST":
         category_slug = request.POST['category']
         if category_slug:
-            return redirect('category_listings', slug=category_slug)
+            return HttpResponseRedirect(reverse('category_listings', kwargs={
+                'slug': category_slug
+            }))
 
     active_listings = get_filtered_listings(category_slug)
-
     return render(request, "auctions/index.html", {
         "actives": active_listings,
         "categories": all_categories
@@ -47,8 +48,8 @@ def category_listings(request, slug=None):
         "category": category
     })
 
-
 # ---- start create listing ----
+
 
 def create_listing(request):
     if request.method == "GET":
@@ -91,11 +92,27 @@ def create_listing(request):
 
 def listing_by_id(request, listing_id):
     listing = Listing.objects.get(id=listing_id)
+    in_watchlist = request.user in listing.watchlist.all()
     return render(request, "auctions/listing.html", {
-        "listing": listing
+        "listing": listing,
+        "watchlist": in_watchlist
     })
 
 # ---- end individual listing ----
+
+
+def remove_watchlist(request, listing_id):
+    listing = Listing.objects.get(pk=listing_id)
+    user = request.user
+    listing.watchlist.remove(user)
+    return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
+
+
+def add_watchlist(request, listing_id):
+    listing = Listing.objects.get(pk=listing_id)
+    user = request.user
+    listing.watchlist.add(user)
+    return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
 
 
 def login_view(request):
