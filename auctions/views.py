@@ -3,8 +3,10 @@ from django.db import IntegrityError
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.db.models import Max
 
-from .models import Comment, User, Category, Listing, UserWatchlist
+
+from .models import Comment, User, Category, Listing, UserWatchlist, Bid
 
 
 def get_filtered_listings(category_slug=None):
@@ -46,9 +48,9 @@ def create_listing(request):
         title = request.POST["title"]
         description = request.POST["description"]
         image_url = request.POST["image_url"]
-        price = request.POST["price"]
-        category = request.POST["category"]
-        categoryData = Category.objects.get(name=category)
+        price = float(request.POST["price"])
+        category_id = request.POST["category"]
+        category = Category.objects.get(pk=category_id)
         active = request.POST["active"]
         # convert 'active' to boolean
         if active == "on":
@@ -61,10 +63,10 @@ def create_listing(request):
             title=title,
             description=description,
             image_url=image_url,
-            bid_start=float(price),
+            bid_current=float(price),
             is_active=is_active,
             seller=seller,
-            category=categoryData,
+            category=category,
         )
         # saving to db
         new_listing.save()
@@ -77,6 +79,7 @@ def create_listing(request):
 def listing_by_id(request, listing_id):
     listing = Listing.objects.get(id=listing_id)
     all_comments = Comment.objects.filter(listing=listing)
+    bid = Bid.objects.filter(listing=listing).last()
     user = request.user
     if user.is_authenticated:
         in_watchlist = UserWatchlist.objects.filter(
@@ -86,7 +89,8 @@ def listing_by_id(request, listing_id):
     return render(request, "auctions/listing.html", {
         "listing": listing,
         "watchlist": in_watchlist,
-        "comments": all_comments
+        "comments": all_comments,
+        "bid": bid
     })
 # ---- end display individual listing ----
 
@@ -162,6 +166,102 @@ def add_comment(request, listing_id):
     new_comment.save()
     return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
 # ---- end add comments ----
+
+
+# ---- start add bids ----
+def add_bid(request, listing_id):
+    if request.method == "POST":
+        # retrieve the bid amount from the form
+        amount = float(request.POST["bid_amount"])
+        # retrieve the bidder (current user)
+        bidder = request.user
+        # retrieve the listing object based on the listing_id
+        listing = Listing.objects.get(pk=listing_id)
+        # retrieve all comments associated with the listing
+        all_comments = Comment.objects.filter(listing=listing)
+        # retrieve the current user
+        user = request.user
+
+        # check if the user is authenticated
+        if user.is_authenticated:
+            # check if the listing is in the user's watchlist
+            in_watchlist = UserWatchlist.objects.filter(
+                user=user, listing=listing).exists()
+        else:
+            # if user is not authenticated, set in_watchlist to False
+            in_watchlist = False
+
+        # check if the bid amount is greater than the current bid on the listing
+        if amount > listing.bid_current:
+            # create a new bid object
+            bid = Bid(listing=listing, bidder=bidder, amount=amount)
+            bid.save()
+            # update the current bid amount on the listing
+            listing.bid_current = amount
+            listing.save()
+            # render the listing page with relevant information
+            return render(request, 'auctions/listing.html', {
+                'listing': listing,
+                "watchlist": in_watchlist,
+                "comments": all_comments
+            })
+
+    # if the method is not POST, redirect back to the listing page
+    return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
+# ---- end add bids ----
+
+
+# ---- start close auction ----
+def close_auction(request, listing_id):
+    # retrieve the listing object based on the listing_id
+    listing = Listing.objects.get(pk=listing_id)
+    # retrieve all comments associated with the listing
+    all_comments = Comment.objects.filter(listing=listing)
+    # get the current user
+    user = request.user
+
+    # check if the user is authenticated
+    if user.is_authenticated:
+        # check if the listing is in the user's watchlist
+        in_watchlist = UserWatchlist.objects.filter(
+            user=user, listing=listing).exists()
+    else:
+        # if user is not authenticated, set in_watchlist to False
+        in_watchlist = False
+
+    # check if the user has placed a bid for the listing
+    if Bid.objects.filter(bidder=user, listing=listing).exists():
+        # retrieve the last bid for the listing
+        bid = Bid.objects.filter(listing=listing).last()
+        # check if the bid amount is greater than 0
+        if bid.amount > 0:
+            # set the listing as inactive
+            listing.is_active = False
+            listing.save()
+            # render the listing page with relevant information
+            return render(request, 'auctions/listing.html', {
+                'listing': listing,
+                "watchlist": in_watchlist,
+                "comments": all_comments,
+                "bid": bid,
+            })
+        else:
+            # render the listing page with an error message if bid amount is not valid
+            return render(request, 'auctions/listing.html', {
+                'listing': listing,
+                "watchlist": in_watchlist,
+                "comments": all_comments,
+                "error_message": "Bid amount must be greater than 0.",
+            })
+    else:
+        # render the listing page with an error message if user hasn't placed a bid
+        return render(request, 'auctions/listing.html', {
+            'listing': listing,
+            "watchlist": in_watchlist,
+            "comments": all_comments,
+            "error_message": "You haven't placed a bid for this listing.",
+        })
+# ---- end close auction ----
 
 
 def login_view(request):

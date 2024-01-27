@@ -9,27 +9,58 @@
         <img src="{{ listing.image_url }}" class="card-img-top" alt="Album Cover" style="max-width: 320px; align-self: center;" />
         <div class="card-body">
           <h5 class="card-title">{{ listing.title }}</h5>
-          <p class="card-text text-danger font-weight-bold">${{ listing.bid_start }} CLP</p>
+          <p class="card-text text-danger font-weight-bold">${{ listing.bid_current }} CLP</p>
           <p class="card-text">{{ listing.description }}</p>
           <p class="card-text">
             <small class="text-muted">Category: <a href="{% url 'category_listings' listing.category.slug %}">{{ listing.category }}</a></small>
           </p>
-          <div class="d-grid gap-2">
-            <a href="{% url 'listing' listing.id %}" class="btn btn-primary" role="button">Place a Bid</a>
-            {% if user.is_authenticated %}
-              {% if watchlist %}
-                <form action="{% url 'remove_watchlist' listing.id %}" method="post" class="mt-2">
-                  {% csrf_token %}
-                  <button class="btn btn-outline-danger w-100" type="submit">Remove from Watchlist</button>
-                </form>
-              {% else %}
-                <form action="{% url 'add_watchlist' listing.id %}" method="post" class="mt-2">
-                  {% csrf_token %}
-                  <button class="btn btn-outline-primary w-100" type="submit">Add to Watchlist</button>
-                </form>
+          {% if listing.is_active and user.is_authenticated %}
+            <form action="{% url 'add_bid' listing.id %}" method="POST">
+              {% csrf_token %}
+              <div class="input-group mb-3">
+                <span class="input-group-text">Bid:</span>
+                <input type="number" class="form-control" name="bid_amount" min="{{ listing.bid_current }}" required />
+                <button class="btn btn-primary" type="submit">Place Bid</button>
+              </div>
+            </form>
+          {% elif not user.is_authenticated %}
+            <p>
+              Please <a href="{% url 'login' %}">log in</a> to submit a bid.
+            </p>
+          {% endif %}
+          <form action="{% url 'close_auction' listing.id %}" method="POST">
+            {% csrf_token %}
+            {% if not listing.is_active %}
+              <div class="alert alert-warning" role="alert">This auction is closed.</div>
+              {% if bid and user == bid.bidder %}
+                <div class="alert alert-success" role="alert">
+                  Congrats 🎉🥳 The auction has been won by <strong>YOU</strong> with a bid of ${{ bid.amount }}.
+                </div>
+              {% elif bid and user != bid.bidder %}
+                <div class="alert alert-warning" role="alert">
+                  The auction has been won by <strong>{{ bid.bidder }}</strong> with a bid of ${{ bid.amount }}.
+                </div>
               {% endif %}
+            {% elif user == listing.seller and listing.is_active %}
+              <form action="{% url 'close_auction' listing.id %}" method="post">
+                {% csrf_token %}
+                <button class="btn btn-danger" type="submit">Close Auction</button>
+              </form>
             {% endif %}
-          </div>
+          </form>
+          {% if user.is_authenticated %}
+            {% if watchlist %}
+              <form action="{% url 'remove_watchlist' listing.id %}" method="post" class="mt-2">
+                {% csrf_token %}
+                <button class="btn btn-outline-danger" type="submit">Remove from Watchlist</button>
+              </form>
+            {% else %}
+              <form action="{% url 'add_watchlist' listing.id %}" method="post" class="mt-2">
+                {% csrf_token %}
+                <button class="btn btn-outline-primary" type="submit">Add to Watchlist</button>
+              </form>
+            {% endif %}
+          {% endif %}
         </div>
       </div>
     </div>
@@ -42,7 +73,7 @@
               {% csrf_token %}
               <div class="mb-3">
                 <label for="commentName" class="form-label">Name:</label>
-                <input type="text" class="form-control" id="commentName" name="comment_name" value="{{user}}" required disabled />
+                <input type="text" class="form-control" id="commentName" name="comment_name" value="{{ user }}" required disabled />
               </div>
               <div class="mb-3">
                 <label for="commentContent" class="form-label">Comment:</label>
@@ -75,4 +106,8 @@
       </div>
     </div>
   </div>
+
+  {% if error_message %}
+    <div class="alert alert-danger mt-3" role="alert">{{ error_message }}</div>
+  {% endif %}
 {% endblock %}
