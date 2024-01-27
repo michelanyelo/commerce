@@ -4,7 +4,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
 
-from .models import User, Category, Listing
+from .models import Comment, User, Category, Listing, UserWatchlist
 
 
 def get_filtered_listings(category_slug=None):
@@ -76,28 +76,61 @@ def create_listing(request):
 # ---- start display individual listing ----
 def listing_by_id(request, listing_id):
     listing = Listing.objects.get(id=listing_id)
-    in_watchlist = request.user in listing.watchlist.all()
+    all_comments = Comment.objects.filter(listing=listing)
+    user = request.user
+    if user.is_authenticated:
+        in_watchlist = UserWatchlist.objects.filter(
+            user=user, listing=listing).exists()
+    else:
+        in_watchlist = False
     return render(request, "auctions/listing.html", {
         "listing": listing,
-        "watchlist": in_watchlist
+        "watchlist": in_watchlist,
+        "comments": all_comments
     })
 # ---- end display individual listing ----
 
 
 # ---- start add/remove watchlist ----
 def remove_watchlist(request, listing_id):
+    # get the listing object
     listing = Listing.objects.get(pk=listing_id)
+    # get the current user
     user = request.user
-    listing.watchlist.remove(user)
+    # check if there is an entry in the user's watchlist for the listing
+    user_watchlist_entry = UserWatchlist.objects.filter(
+        user=user, listing=listing).first()
+    # if the entry exists, delete it
+    if user_watchlist_entry:
+        user_watchlist_entry.delete()
+    # redirect back to the listing page
     return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
 
 
 def add_watchlist(request, listing_id):
+    # get the listing object
     listing = Listing.objects.get(pk=listing_id)
+    # get the current user
     user = request.user
-    listing.watchlist.add(user)
+    # if there is no existing entry in the user's watchlist for the listing, create one
+    if not UserWatchlist.objects.filter(user=user, listing=listing).exists():
+        UserWatchlist.objects.create(user=user, listing=listing)
+    # redirect back to the listing page
     return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
 # ---- end add/remove watchlist ----
+
+
+# ---- start display personal watchlist ----
+def personal_watchlist(request):
+    # get the current user
+    user = request.user
+    # get all listings in the user's watchlist
+    listings = Listing.objects.filter(userwatchlist__user=user)
+    # render the watchlist template with the listings
+    return render(request, "auctions/watchlist.html", {
+        "listings": listings
+    })
+# ---- end display personal watchlist ----
 
 
 # ---- start list of all listing categories ----
@@ -114,6 +147,21 @@ def category_listings(request, slug=None):
         "category": category
     })
 # ---- end list of all listing categories ----
+
+
+# ---- start add comments ----
+def add_comment(request, listing_id):
+    user = request.user
+    listing = Listing.objects.get(pk=listing_id)
+    message = request.POST["comment_content"]
+    new_comment = Comment(
+        author=user,
+        listing=listing,
+        message=message
+    )
+    new_comment.save()
+    return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
+# ---- end add comments ----
 
 
 def login_view(request):
