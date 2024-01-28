@@ -3,7 +3,8 @@ from django.db import IntegrityError
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
-from django.db.models import Max
+from django.contrib.auth.decorators import login_required
+
 
 
 from .models import Comment, User, Category, Listing, UserWatchlist, Bid
@@ -39,6 +40,7 @@ def index(request):
 
 
 # ---- start create listing ----
+@login_required
 def create_listing(request):
     if request.method == "GET":
         allCategories = Category.objects.all()
@@ -96,6 +98,7 @@ def listing_by_id(request, listing_id):
 
 
 # ---- start add/remove watchlist ----
+@login_required
 def remove_watchlist(request, listing_id):
     # get the listing object
     listing = Listing.objects.get(pk=listing_id)
@@ -110,7 +113,7 @@ def remove_watchlist(request, listing_id):
     # redirect back to the listing page
     return HttpResponseRedirect(reverse('listing', args=(listing_id,)))
 
-
+@login_required
 def add_watchlist(request, listing_id):
     # get the listing object
     listing = Listing.objects.get(pk=listing_id)
@@ -125,6 +128,7 @@ def add_watchlist(request, listing_id):
 
 
 # ---- start display personal watchlist ----
+@login_required
 def personal_watchlist(request):
     # get the current user
     user = request.user
@@ -154,6 +158,7 @@ def category_listings(request, slug=None):
 
 
 # ---- start add comments ----
+@login_required
 def add_comment(request, listing_id):
     user = request.user
     listing = Listing.objects.get(pk=listing_id)
@@ -169,6 +174,7 @@ def add_comment(request, listing_id):
 
 
 # ---- start add bids ----
+@login_required
 def add_bid(request, listing_id):
     if request.method == "POST":
         # retrieve the bid amount from the form
@@ -212,6 +218,7 @@ def add_bid(request, listing_id):
 
 
 # ---- start close auction ----
+@login_required
 def close_auction(request, listing_id):
     # retrieve the listing object based on the listing_id
     listing = Listing.objects.get(pk=listing_id)
